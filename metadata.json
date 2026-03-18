@@ -1,0 +1,5 @@
+{
+  "name": "Simulador de Horas Disponíveis",
+  "description": "Aplicativo para gerenciar equipes de manutenção industrial, calcular HH disponível, acompanhar escalas e gerenciar backlog.",
+  "requestFramePermissions": []
+}
