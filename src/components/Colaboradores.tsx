@@ -1,19 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Colaborador } from '../types';
 import { ColaboradorFormModal } from './ColaboradorFormModal';
-import { Pencil, Trash2, Plus, Filter } from 'lucide-react';
+import { Pencil, Trash2, Plus, Filter, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useColaboradores } from '../contexts/ColaboradoresContext';
 
 export function Colaboradores() {
-  const { colaboradores, loading, addColaborador, updateColaborador, deleteColaborador } = useColaboradores();
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [editingColaborador, setEditingColaborador] = React.useState<Colaborador | undefined>(undefined);
-  const [selectedTeam, setSelectedTeam] = React.useState<string>('Todas as Equipes');
+  const { colaboradores, oficinas, loading, addColaborador, updateColaborador, deleteColaborador } = useColaboradores();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingColaborador, setEditingColaborador] = useState<Colaborador | undefined>(undefined);
+  const [selectedTeam, setSelectedTeam] = useState<string>('Todas as Equipes');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [colaboradorToDelete, setColaboradorToDelete] = useState<Colaborador | null>(null);
 
-  // Extract unique teams (oficinas)
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Extract unique teams (oficinas) from context
   const teams = React.useMemo(() => {
-    return ['Todas as Equipes', ...new Set(colaboradores.map(c => c.oficina))];
-  }, [colaboradores]);
+    return ['Todas as Equipes', ...oficinas];
+  }, [oficinas]);
 
   const filteredColaboradores = React.useMemo(() => {
     return colaboradores.filter(colab => {
@@ -33,14 +41,25 @@ export function Colaboradores() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este colaborador?')) {
-      try {
-        await deleteColaborador(id);
-      } catch (error) {
-        console.error('Failed to delete colaborador', error);
-        alert('Erro ao excluir colaborador');
-      }
+  const confirmDelete = (colab: Colaborador) => {
+    setColaboradorToDelete(colab);
+  };
+
+  const handleDelete = async () => {
+    if (!colaboradorToDelete) return;
+    
+    const id = colaboradorToDelete.id;
+    setDeletingId(id);
+    setColaboradorToDelete(null); // Close modal immediately
+    
+    try {
+      await deleteColaborador(id);
+      showToast('Colaborador excluído com sucesso!');
+    } catch (error) {
+      console.error('Failed to delete colaborador', error);
+      // Custom alert could be used here, but for now we just log
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -48,8 +67,10 @@ export function Colaboradores() {
     try {
       if (editingColaborador) {
         await updateColaborador(data);
+        showToast('Colaborador atualizado com sucesso!');
       } else {
         await addColaborador(data);
+        showToast('Colaborador adicionado com sucesso!');
       }
       setIsModalOpen(false);
     } catch (error) {
@@ -59,7 +80,15 @@ export function Colaboradores() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg shadow-lg animate-in slide-in-from-bottom-5">
+          <CheckCircle2 className="w-5 h-5" />
+          <span className="font-medium">{toastMessage}</span>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-slate-900">Colaboradores</h1>
         
@@ -127,11 +156,16 @@ export function Colaboradores() {
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button 
-                          onClick={() => handleDelete(colab.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors"
+                          onClick={() => confirmDelete(colab)}
+                          disabled={deletingId === colab.id}
+                          className="p-1 text-slate-400 hover:text-rose-600 transition-colors disabled:opacity-50"
                           title="Excluir"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {deletingId === colab.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -157,6 +191,42 @@ export function Colaboradores() {
         initialData={editingColaborador}
         oficinasDisponiveis={teams.filter(t => t !== 'Todas as Equipes')}
       />
+
+      {/* Delete Confirmation Modal */}
+      {colaboradorToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-6 h-6 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Excluir Colaborador</h3>
+                <p className="text-sm text-slate-500">Esta ação não pode ser desfeita.</p>
+              </div>
+            </div>
+            
+            <p className="text-slate-700 mb-6">
+              Tem certeza que deseja excluir o colaborador <span className="font-bold">{colaboradorToDelete.nome}</span>?
+            </p>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setColaboradorToDelete(null)}
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors"
+              >
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

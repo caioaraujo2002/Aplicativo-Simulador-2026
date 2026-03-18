@@ -7,7 +7,7 @@ import { Colaborador } from '../types';
 export const SPREADSHEET_ID = '1t6mOklY72grVr_5nZb6yHNKqXyCYwXozecMypSLe7NA';
 export const API_KEY = 'AIzaSyBlyp0zVY9lRlrqYtW7OzUNee3WguBbex8';
 
-// Lista de abas (equipes) que serão lidas
+// Lista de abas (equipes) que serão lidas (fallback)
 export const SHEET_NAMES = [
   'Refrigeração (Denylson)', 
   'Mecânica (Aloizio)', 
@@ -28,6 +28,45 @@ export const SHEET_NAMES = [
   'Instrumentação (André/Valdir)', 
   'Theman'
 ];
+
+/**
+ * Busca os nomes das abas (oficinas) da planilha dinamicamente
+ */
+export async function fetchSheetNames(): Promise<string[]> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${API_KEY}`;
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error('Erro ao buscar metadados da planilha:', await response.text());
+      return SHEET_NAMES; // fallback
+    }
+    
+    const data = await response.json();
+    if (!data.sheets || !Array.isArray(data.sheets)) {
+      return SHEET_NAMES;
+    }
+    
+    const allSheetNames = data.sheets.map((s: any) => s.properties.title);
+    
+    // Filtra abas que não são de colaboradores
+    const EXCLUDED_KEYWORDS = [
+      'dashboard', 'resumo', 'listas', 'configurações', 'dados',
+      'calendario', 'calendário', 'ferias', 'férias', 'legenda', 
+      'simulador', 'backlog', 'matriculas', 'relações', 'relacoes'
+    ];
+    
+    const validSheetNames = allSheetNames.filter((name: string) => {
+      const lowerName = name.toLowerCase().trim();
+      return !EXCLUDED_KEYWORDS.some(keyword => lowerName.includes(keyword));
+    });
+    
+    return validSheetNames.length > 0 ? validSheetNames : SHEET_NAMES;
+  } catch (error) {
+    console.error('Erro de rede ao buscar nomes das abas:', error);
+    return SHEET_NAMES;
+  }
+}
 
 // Datas de referência para início dos ciclos
 const DATAS_REFERENCIA: Record<string, string> = {
@@ -55,9 +94,9 @@ interface GoogleSheetResponse {
  * Busca os dados de uma aba específica
  */
 async function fetchSheetData(sheetName: string): Promise<string[][]> {
-  // Busca até a coluna G (índice 6) para garantir que pegamos a Turma
+  // Busca até a coluna R (índice 17) para garantir que pegamos a Semana e os dias
   // Aumentado para 5000 linhas para garantir que pega todos os colaboradores (52 linhas cada)
-  const range = `${sheetName}!A2:G5000`; 
+  const range = `${sheetName}!A2:R5000`; 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
 
   try {
@@ -82,11 +121,16 @@ async function fetchSheetData(sheetName: string): Promise<string[][]> {
  */
 export async function getAllColaboradores(): Promise<Colaborador[]> {
   try {
+    // Busca os nomes das abas dinamicamente
+    const sheetNames = await fetchSheetNames();
+
     // Busca todas as abas em paralelo
-    const promises = SHEET_NAMES.map(async (sheetName) => {
+    const promises = sheetNames.map(async (sheetName) => {
       const rows = await fetchSheetData(sheetName);
       
-      return rows.map((row) => {
+      const colabMap = new Map<string, Colaborador>();
+
+      rows.forEach((row) => {
         try {
           // Função auxiliar para limpar e tratar erros do Excel (#VALUE!, #N/A, etc)
           const safeString = (val: any) => {
@@ -97,7 +141,7 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
           const matricula = safeString(row[0]);
           
           // Validação: Ignora linhas sem matrícula, cabeçalhos repetidos ou erros
-          if (!matricula || matricula === 'NºMatrícula' || matricula === 'Matricula') return null;
+          if (!matricula || matricula === 'NºMatrícula' || matricula === 'Matricula') return;
 
           const nome = safeString(row[1]);
           const funcao = safeString(row[2]) || 'Não informada';
@@ -105,30 +149,50 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
           const turnoLimpo = safeString(row[5]) || 'ADM';
           const turmaLimpa = safeString(row[6]);
           
-          // Determina a data de início do ciclo
-          let dataInicioCiclo = '01/01/2020';
-          if (turnoLimpo === 'ADM') {
-            dataInicioCiclo = DATAS_REFERENCIA['ADM'];
-          } else {
-            const key = `${turnoLimpo}-${turmaLimpa}`;
-            dataInicioCiclo = DATAS_REFERENCIA[key] || '01/01/2020';
+          const semana = safeString(row[17]); // Coluna R
+          const dias = [
+            safeString(row[7]), // dom (H)
+            safeString(row[8]), // seg (I)
+            safeString(row[9]), // ter (J)
+            safeString(row[10]), // qua (K)
+            safeString(row[11]), // qui (L)
+            safeString(row[12]), // sex (M)
+            safeString(row[13])  // sab (N)
+          ];
+
+          if (!colabMap.has(matricula)) {
+            // Determina a data de início do ciclo
+            let dataInicioCiclo = '01/01/2020';
+            if (turnoLimpo === 'ADM') {
+              dataInicioCiclo = DATAS_REFERENCIA['ADM'];
+            } else {
+              const key = `${turnoLimpo}-${turmaLimpa}`;
+              dataInicioCiclo = DATAS_REFERENCIA[key] || '01/01/2020';
+            }
+
+            colabMap.set(matricula, {
+              id: matricula,
+              nome: nome,
+              funcao: funcao,
+              escala: escala as any,
+              turno: turnoLimpo as any,
+              turma: turmaLimpa,
+              oficina: sheetName.trim(),
+              dataInicioCiclo: dataInicioCiclo,
+              escalasAnuais: {}
+            });
           }
 
-          return {
-            id: matricula,
-            nome: nome,
-            funcao: funcao,
-            escala: escala,
-            turno: turnoLimpo,
-            turma: turmaLimpa,
-            oficina: sheetName.trim() as any, // Usa o nome da aba como Oficina e remove espaços residuais
-            dataInicioCiclo: dataInicioCiclo
-          } as Colaborador;
+          const colab = colabMap.get(matricula)!;
+          if (semana && colab.escalasAnuais) {
+            colab.escalasAnuais[semana] = dias;
+          }
         } catch (err) {
           console.warn('Erro ao processar linha:', row, err);
-          return null;
         }
-      }).filter((c): c is Colaborador => c !== null);
+      });
+
+      return Array.from(colabMap.values());
     });
 
     const results = await Promise.all(promises);

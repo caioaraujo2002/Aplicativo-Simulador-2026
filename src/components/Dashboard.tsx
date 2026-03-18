@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { api } from '../services/mockApi';
-import { BacklogOficina, Colaborador, CicloTurno, LancamentoDiario } from '../types';
+import { BacklogOficina, Colaborador, CicloTurno, LancamentoDiario, CodigoDia } from '../types';
 import { useColaboradores } from '../contexts/ColaboradoresContext';
 import { calcularHHDisponivel } from '../utils/calculations';
 import { getStartOfWeekUTC, calcularValorDia, formatDateUTC } from '../utils/shiftCalculator';
@@ -48,7 +48,27 @@ export function Dashboard() {
         const key = `${colab.id}_${dataStr}`;
         const lancamento = lancamentos[key];
         
-        let codigo = lancamento ? lancamento.codigo : calcularValorDia(colab.escala, colab.turno, colab.turma, date);
+        let codigo: CodigoDia;
+        if (lancamento) {
+          codigo = lancamento.codigo;
+        } else {
+          const baseDate = new Date(Date.UTC(2025, 11, 28, 12, 0, 0));
+          const diffTime = date.getTime() - baseDate.getTime();
+          const diffDays = Math.floor(diffTime / 86400000);
+          const semana = Math.floor(diffDays / 7) + 1;
+          const diaDaSemana = date.getUTCDay();
+
+          if (colab.escalasAnuais && colab.escalasAnuais[String(semana)]) {
+            const valorPlanilha = colab.escalasAnuais[String(semana)][diaDaSemana];
+            if (valorPlanilha !== undefined && valorPlanilha !== '') {
+              codigo = valorPlanilha;
+            } else {
+              codigo = calcularValorDia(colab.escala, colab.turno, colab.turma, date);
+            }
+          } else {
+            codigo = calcularValorDia(colab.escala, colab.turno, colab.turma, date);
+          }
+        }
         
         // Calcular HH disponível
         let hh = calcularHHDisponivel(codigo);

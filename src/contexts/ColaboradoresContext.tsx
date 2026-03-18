@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Colaborador } from '../types';
 import { api } from '../services/mockApi';
-import { getAllColaboradores } from '../services/googleSheetsService';
+import { getAllColaboradores, fetchSheetNames } from '../services/googleSheetsService';
 import { updateColaboradorMasterData, addColaboradorMasterData, deleteColaboradorMasterData, transferColaboradorMasterData } from '../services/sheetsApi';
 import { calcularValorDia } from '../utils/shiftCalculator';
 
 interface ColaboradoresContextData {
   colaboradores: Colaborador[];
+  oficinas: string[];
   loading: boolean;
   refreshColaboradores: () => Promise<void>;
   addColaborador: (colab: Colaborador) => Promise<void>;
@@ -18,11 +19,16 @@ const ColaboradoresContext = createContext<ColaboradoresContextData>({} as Colab
 
 export function ColaboradoresProvider({ children }: { children: ReactNode }) {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [oficinas, setOficinas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refreshColaboradores = async () => {
     setLoading(true);
     try {
+      // Fetch sheet names (oficinas)
+      const sheetNames = await fetchSheetNames();
+      setOficinas(sheetNames);
+
       // Try to fetch from Google Sheets first
       let colabs: Colaborador[] = [];
       try {
@@ -49,7 +55,11 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const addColaborador = async (data: Colaborador) => {
+    const previousState = [...colaboradores];
     try {
+      // Optimistic UI update
+      setColaboradores(prev => [...prev, data]);
+
       // Calcular as 52 semanas do ano para o novo turno/turma
       const escalasAnuais: Record<string, string[]> = {};
       const baseDate = new Date(Date.UTC(2025, 11, 28, 12, 0, 0)); // 28/12/2025 12:00 UTC
@@ -81,17 +91,21 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       });
 
       await api.addColaborador(data);
-      setColaboradores(prev => [...prev, data]);
     } catch (error) {
       console.error('Erro ao adicionar colaborador:', error);
+      setColaboradores(previousState); // Revert on error
       throw error;
     }
   };
 
   const updateColaborador = async (data: Colaborador) => {
+    const previousState = [...colaboradores];
     try {
       const originalColab = colaboradores.find(c => c.id === data.id);
       const oficinaOriginal = originalColab?.oficina;
+
+      // Optimistic UI update
+      setColaboradores(prev => prev.map(c => c.id === data.id ? data : c));
 
       // Calcular as 52 semanas do ano para o novo turno/turma
       const escalasAnuais: Record<string, string[]> = {};
@@ -136,30 +150,34 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // Atualiza estado local e mock API
-      setColaboradores(prev => prev.map(c => c.id === data.id ? data : c));
       await api.updateColaborador(data);
     } catch (error) {
       console.error('Erro ao atualizar colaborador:', error);
+      setColaboradores(previousState); // Revert on error
       throw error;
     }
   };
 
   const deleteColaborador = async (id: string) => {
+    const previousState = [...colaboradores];
     try {
       const colabToDelete = colaboradores.find(c => c.id === id);
+      
+      // Optimistic UI update
+      setColaboradores(prev => prev.filter(c => c.id !== id));
+
       if (colabToDelete) {
         await deleteColaboradorMasterData({
           action: 'DELETE_COLABORADOR',
-          oficina: colabToDelete.oficina,
-          matricula: id
+          oficina: colabToDelete.oficina.trim(),
+          matricula: id.trim()
         });
       }
       
-      setColaboradores(prev => prev.filter(c => c.id !== id));
       await api.deleteColaborador(id);
     } catch (error) {
       console.error('Erro ao excluir colaborador:', error);
+      setColaboradores(previousState); // Revert on error
       throw error;
     }
   };
@@ -167,6 +185,7 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
   return (
     <ColaboradoresContext.Provider value={{ 
       colaboradores, 
+      oficinas,
       loading, 
       refreshColaboradores,
       addColaborador,

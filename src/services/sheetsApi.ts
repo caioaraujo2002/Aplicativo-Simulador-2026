@@ -4,7 +4,7 @@
 
 // URL do Web App (Apps Script) publicado. 
 // IMPORTANTE: Substitua pela URL real após publicar o script.
-export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8NoOlk9Ks70wySW6vZhpbizWV-hQYIe9ZsqLaX7a8GPIXwIIP4Z8ehlHZbs2hHCLV2g/exec';
+export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwlUTJChiR4bLm3p_GjW43BpzU9o4JSAR3q0Rau45LCD1hPquT_u26zrGmyEuMfDP8efQ/exec';
 
 /**
  * Envia dados para o Google Sheets via Apps Script

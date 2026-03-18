@@ -21,7 +21,7 @@ const OPCOES_LEGENDA = [
 ];
 
 export function SimuladorGrid() {
-  const { colaboradores, loading } = useColaboradores();
+  const { colaboradores, oficinas, loading } = useColaboradores();
   
   // Inicializa com a data atual em UTC (meio-dia)
   const [currentDate, setCurrentDate] = useState(() => {
@@ -37,10 +37,10 @@ export function SimuladorGrid() {
 
   const weekDays = Array.from({ length: 7 }).map((_, i) => new Date(currentDate.getTime() + i * 86400000));
 
-  // Extract unique teams (oficinas)
+  // Extract unique teams (oficinas) from context
   const teams = React.useMemo(() => {
-    return ['Todas as Equipes', ...new Set(colaboradores.map(c => c.oficina))];
-  }, [colaboradores]);
+    return ['Todas as Equipes', ...oficinas];
+  }, [oficinas]);
 
   useEffect(() => {
     fetchData();
@@ -81,7 +81,22 @@ export function SimuladorGrid() {
       return lancamento.codigo;
     }
     
-    // Se não tem lançamento manual, projeta
+    // Calcula a semana e o dia da semana
+    const baseDate = new Date(Date.UTC(2025, 11, 28, 12, 0, 0));
+    const diffTime = dateObjUTC.getTime() - baseDate.getTime();
+    const diffDays = Math.floor(diffTime / 86400000);
+    const semana = Math.floor(diffDays / 7) + 1;
+    const diaDaSemana = dateObjUTC.getUTCDay(); // 0 = dom, 1 = seg...
+
+    // Tenta pegar da planilha oficial primeiro
+    if (colab.escalasAnuais && colab.escalasAnuais[String(semana)]) {
+      const valorPlanilha = colab.escalasAnuais[String(semana)][diaDaSemana];
+      if (valorPlanilha !== undefined && valorPlanilha !== '') {
+        return valorPlanilha;
+      }
+    }
+
+    // Se não tem na planilha, projeta
     return calcularValorDia(colab.escala, colab.turno, colab.turma, dateObjUTC);
   };
 

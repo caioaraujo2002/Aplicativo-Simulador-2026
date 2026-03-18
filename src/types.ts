@@ -1,6 +1,6 @@
 export type Escala = 'ADM' | '6x3' | '4x2';
 export type Turno = '104' | '115' | '21' | 'ADM';
-export type Oficina = 'Mecânica' | 'Elétrica' | 'Instrumentação';
+export type Oficina = string;
 
 export interface Colaborador {
   id: string; // Matrícula
@@ -11,6 +11,7 @@ export interface Colaborador {
   turma: string;
   oficina: Oficina;
   dataInicioCiclo?: string;
+  escalasAnuais?: Record<string, string[]>;
 }
 
 export interface CicloTurno {
