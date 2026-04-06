@@ -14,7 +14,7 @@ export function Layout() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex min-w-[1024px]">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* Mobile sidebar overlay */}
       {isSidebarOpen && (
         <div 
@@ -24,12 +24,15 @@ export function Layout() {
       )}
 
       {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 min-w-[16rem] flex-shrink-0 bg-slate-900 text-white transition-transform duration-300 ease-in-out
-        lg:translate-x-0 lg:static lg:inset-0
-        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
-        <div className="flex items-center justify-between h-16 px-4 bg-slate-950">
+      <aside 
+        className={`
+          flex-shrink-0 w-64 h-screen flex flex-col bg-slate-900 text-white transition-transform duration-300 ease-in-out
+          fixed inset-y-0 left-0 z-50 lg:translate-x-0 lg:static lg:inset-0
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+        style={{ backgroundColor: '#0f172a' }}
+      >
+        <div className="flex items-center justify-between h-16 px-4 bg-slate-950" style={{ backgroundColor: '#020617' }}>
           <div className="flex items-center gap-2 font-bold text-lg tracking-tight">
             <Wrench className="w-5 h-5 text-emerald-400" />
             <span>Simulador HH</span>
@@ -39,7 +42,7 @@ export function Layout() {
           </button>
         </div>
 
-        <nav className="p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             const Icon = item.icon;
@@ -62,15 +65,15 @@ export function Layout() {
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-slate-950/50">
+        <div className="p-4 bg-slate-950/50" style={{ backgroundColor: 'rgba(2, 6, 23, 0.5)' }}>
           <div className="text-xs text-slate-500 font-mono">
             Conectado: Google Sheets API
           </div>
         </div>
-      </div>
+      </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-x-auto">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header className="bg-white border-b border-slate-200 h-16 flex items-center px-4 lg:px-8 justify-between shrink-0">
           <button 
             onClick={() => setIsSidebarOpen(true)}
@@ -86,8 +89,8 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6">
+          <div className="min-w-[1024px] mx-auto">
             <Outlet />
           </div>
         </main>
