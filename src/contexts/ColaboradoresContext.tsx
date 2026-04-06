@@ -91,6 +91,9 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       });
 
       await api.addColaborador(data);
+      
+      // Force re-sync with Google Sheets to ensure data consistency
+      await refreshColaboradores();
     } catch (error) {
       console.error('Erro ao adicionar colaborador:', error);
       setColaboradores(previousState); // Revert on error
@@ -151,6 +154,9 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       }
 
       await api.updateColaborador(data);
+      
+      // Force re-sync with Google Sheets to ensure data consistency
+      await refreshColaboradores();
     } catch (error) {
       console.error('Erro ao atualizar colaborador:', error);
       setColaboradores(previousState); // Revert on error
@@ -175,6 +181,9 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       }
       
       await api.deleteColaborador(id);
+      
+      // Force re-sync with Google Sheets to ensure data consistency
+      await refreshColaboradores();
     } catch (error) {
       console.error('Erro ao excluir colaborador:', error);
       setColaboradores(previousState); // Revert on error
