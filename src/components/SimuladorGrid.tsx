@@ -197,18 +197,18 @@ export function SimuladorGrid() {
     });
   }, [colaboradores, selectedTeam]);
 
-  const getCellColor = (value: string | number) => {
+  const getCellStyles = (value: string | number) => {
     const strVal = String(value).replace('.', ',').toUpperCase();
     
-    if (strVal === 'F') return 'bg-red-500 text-white font-bold';
-    if (strVal === 'T') return 'bg-blue-500 text-white font-bold';
-    if (strVal === 'L') return 'bg-yellow-400 text-yellow-900 font-bold';
+    if (strVal === 'F') return { className: 'font-bold', style: { backgroundColor: '#ef4444', color: '#ffffff' } };
+    if (strVal === 'T') return { className: 'font-bold', style: { backgroundColor: '#3b82f6', color: '#ffffff' } };
+    if (strVal === 'L') return { className: 'font-bold', style: { backgroundColor: '#facc15', color: '#713f12' } };
     
     // Check for hours
-    if (['6,5', '8,5', '5', '4'].includes(strVal)) return 'bg-green-500 text-white font-bold';
+    if (['6,5', '8,5', '5', '4'].includes(strVal)) return { className: 'font-bold', style: { backgroundColor: '#22c55e', color: '#ffffff' } };
     
     // Default/Zero
-    return 'bg-gray-100 text-gray-800';
+    return { className: '', style: { backgroundColor: '#f3f4f6', color: '#1f2937' } };
   };
 
   if (loading) {
@@ -276,10 +276,10 @@ export function SimuladorGrid() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" style={{ backgroundColor: '#ffffff' }}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-medium" style={{ backgroundColor: '#f8fafc' }}>
               <tr>
                 <th className="px-4 py-3 min-w-[200px]">Colaborador</th>
                 <th className="px-4 py-3 w-24">Escala</th>
@@ -296,18 +296,18 @@ export function SimuladorGrid() {
                     </div>
                   </th>
                 ))}
-                <th className="px-4 py-3 w-24 text-center bg-slate-100">Total HH</th>
+                <th className="px-4 py-3 w-24 text-center bg-slate-100" style={{ backgroundColor: '#f1f5f9' }}>Total HH</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {filteredColaboradores.map(colab => (
-                <tr key={colab.id} className="hover:bg-slate-50/50 transition-colors">
+                <tr key={colab.id} className="hover:bg-slate-50/50 transition-colors" style={{ backgroundColor: '#ffffff' }}>
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">{colab.nome}</div>
                     <div className="text-xs text-slate-500">{colab.funcao} • {colab.oficina}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700">
+                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700" style={{ backgroundColor: '#f1f5f9' }}>
                       {colab.escala}
                     </span>
                   </td>
@@ -321,7 +321,7 @@ export function SimuladorGrid() {
                     
                     // Normalize value for select
                     const selectValue = typeof valor === 'number' ? String(valor).replace('.', ',') : valor;
-                    const cellColorClass = getCellColor(selectValue);
+                    const cellStyles = getCellStyles(selectValue);
                     
                     return (
                       <td key={dataStr} className="px-2 py-2">
@@ -330,31 +330,32 @@ export function SimuladorGrid() {
                           onChange={(e) => handleCellChange(colab, dataStr, e.target.value)}
                           className={`
                             w-full h-full text-center py-1.5 rounded border focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all font-mono text-sm appearance-none cursor-pointer
-                            ${cellColorClass}
+                            ${cellStyles.className}
                           `}
+                          style={cellStyles.style}
                         >
                           {OPCOES_LEGENDA.map(op => (
-                            <option key={op.label} value={op.value} className="bg-white text-slate-900">
+                            <option key={op.label} value={op.value} className="bg-white text-slate-900" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>
                               {op.label}
                             </option>
                           ))}
                           {/* Fallback option if current value is not in legend */}
                           {!OPCOES_LEGENDA.some(op => op.value === selectValue) && (
-                            <option value={selectValue} className="bg-white text-slate-900">{selectValue}</option>
+                            <option value={selectValue} className="bg-white text-slate-900" style={{ backgroundColor: '#ffffff', color: '#0f172a' }}>{selectValue}</option>
                           )}
                         </select>
                       </td>
                     );
                   })}
                   
-                  <td className="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50">
+                  <td className="px-4 py-3 text-center font-bold text-slate-900 bg-slate-50" style={{ backgroundColor: '#f8fafc' }}>
                     {calcularTotalSemana(colab).toFixed(1)}h
                   </td>
                 </tr>
               ))}
               {filteredColaboradores.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={11} className="px-4 py-8 text-center text-slate-500" style={{ backgroundColor: '#ffffff' }}>
                     Nenhum colaborador encontrado para a equipe selecionada.
                   </td>
                 </tr>
@@ -364,13 +365,13 @@ export function SimuladorGrid() {
         </div>
       </div>
       
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-4 text-sm text-blue-800">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-wrap gap-4 text-sm text-blue-800" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af' }}>
         <div><strong>Legenda:</strong></div>
-        <div className="flex gap-4">
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-rose-200 border border-rose-300"></span> F = Folga/Férias/Falta</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-200 border border-amber-300"></span> T = Treinamento</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-200 border border-amber-300"></span> L = Licença</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-white border border-slate-300"></span> Números = Horas Trabalhadas</span>
+        <div className="flex flex-wrap gap-4">
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-rose-200 border border-rose-300" style={{ backgroundColor: '#fecdd3', borderColor: '#fda4af', width: '12px', height: '12px', borderRadius: '50%', display: 'inline-block' }}></span> F = Folga/Férias/Falta</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-200 border border-blue-300" style={{ backgroundColor: '#bfdbfe', borderColor: '#93c5fd', width: '12px', height: '12px', borderRadius: '50%', display: 'inline-block' }}></span> T = Treinamento</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-amber-200 border border-amber-300" style={{ backgroundColor: '#fde68a', borderColor: '#fcd34d', width: '12px', height: '12px', borderRadius: '50%', display: 'inline-block' }}></span> L = Licença</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-white border border-slate-300" style={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', width: '12px', height: '12px', borderRadius: '50%', display: 'inline-block' }}></span> Números = Horas Trabalhadas</span>
         </div>
       </div>
     </div>
