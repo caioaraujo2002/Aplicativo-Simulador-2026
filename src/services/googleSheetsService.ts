@@ -142,10 +142,15 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
 
           const matricula = safeString(row[0]);
           
-          // Validação: Ignora linhas sem matrícula, cabeçalhos repetidos ou erros
-          if (!matricula || matricula === 'NºMatrícula' || matricula === 'Matricula') return;
+          // Validação: Ignora linhas sem matrícula ou que são claramente cabeçalhos
+          if (!matricula || 
+              matricula.toLowerCase() === 'nºmatrícula' || 
+              matricula.toLowerCase() === 'matricula' || 
+              matricula.toLowerCase() === 'matrícula') {
+            return;
+          }
 
-          const nome = safeString(row[1]);
+          const nome = safeString(row[1]) || 'Sem Nome'; // Garante que o colaborador vai existir mesmo sem nome
           const funcao = safeString(row[2]) || 'Não informada';
           const escala = safeString(row[3]) || 'ADM';
           const turnoLimpo = safeString(row[5]) || 'ADM';
@@ -186,6 +191,13 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
           }
 
           const colab = colabMap.get(matricula)!;
+          
+          // Se o nome atual do mapa for 'Sem Nome' e essa nova linha tiver o nome verdadeiro, atualiza
+          if (colab.nome === 'Sem Nome' && nome !== 'Sem Nome') {
+            colab.nome = nome;
+          }
+
+          // Atribui os dias à semana, apenas se a semana for um valor válido (não vazio)
           if (semana && colab.escalasAnuais) {
             colab.escalasAnuais[semana] = dias;
           }
