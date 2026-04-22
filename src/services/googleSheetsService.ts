@@ -95,12 +95,14 @@ interface GoogleSheetResponse {
  */
 async function fetchSheetData(sheetName: string): Promise<string[][]> {
   // Busca até a coluna R (índice 17) para garantir que pegamos a Semana e os dias
-  // Aumentado para 5000 linhas para garantir que pega todos os colaboradores (52 linhas cada)
-  const range = `${sheetName}!A2:R5000`; 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}`;
+  // Aumentado para 10000 linhas e até a coluna T para cobrir todos os dados
+  const range = `'${sheetName}'!A2:T10000`; 
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}&t=${new Date().getTime()}`;
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      cache: 'no-store'
+    });
     
     if (!response.ok) {
       const error = await response.json();

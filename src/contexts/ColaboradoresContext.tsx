@@ -169,9 +169,6 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
     try {
       const colabToDelete = colaboradores.find(c => c.id === id);
       
-      // Optimistic UI update
-      setColaboradores(prev => prev.filter(c => c.id !== id));
-
       if (colabToDelete) {
         await deleteColaboradorMasterData({
           action: 'DELETE_COLABORADOR',
@@ -181,6 +178,9 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       }
       
       await api.deleteColaborador(id);
+      
+      // Update local state IMMEDIATELY after successful API call
+      setColaboradores(prev => prev.filter(c => c.id !== id));
       
       // Force re-sync with Google Sheets to ensure data consistency
       await refreshColaboradores();
