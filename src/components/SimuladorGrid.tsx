@@ -34,6 +34,7 @@ export function SimuladorGrid() {
   const [saving, setSaving] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string>('Todas as Equipes');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const weekDays = Array.from({ length: 7 }).map((_, i) => new Date(currentDate.getTime() + i * 86400000));
 
@@ -46,10 +47,13 @@ export function SimuladorGrid() {
     fetchData();
   }, [currentDate]);
 
-  // Reset save status after 3 seconds
+  // Reset save status after 5 seconds (a bit longer for people to read the error)
   useEffect(() => {
     if (saveStatus === 'success' || saveStatus === 'error') {
-      const timer = setTimeout(() => setSaveStatus('idle'), 3000);
+      const timer = setTimeout(() => {
+        setSaveStatus('idle');
+        setErrorMessage('');
+      }, 5000);
       return () => clearTimeout(timer);
     }
   }, [saveStatus]);
@@ -151,6 +155,7 @@ export function SimuladorGrid() {
 
     // Dispara salvamento no Google Sheets
     setSaveStatus('saving');
+    setErrorMessage('');
     try {
       await saveDataToSheet({
         action: 'UPDATE_CELL',
@@ -161,9 +166,10 @@ export function SimuladorGrid() {
         valor: cleanValue
       });
       setSaveStatus('success');
-    } catch (error) {
-      console.error('Erro ao salvar no Google Sheets:', error);
+    } catch (error: any) {
+      console.error('Erro na requisição ou no backend ao salvar célula:', error);
       setSaveStatus('error');
+      setErrorMessage(error.message || 'Erro desconhecido ao salvar.');
     }
   };
 
@@ -242,9 +248,9 @@ export function SimuladorGrid() {
             </div>
           )}
           {saveStatus === 'error' && (
-            <div className="flex items-center gap-2 text-rose-600 text-sm bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100">
-              <AlertCircle className="w-4 h-4" />
-              <span>Erro ao salvar</span>
+            <div className="flex items-center gap-2 text-rose-600 text-sm bg-rose-50 px-3 py-1.5 rounded-full border border-rose-100 max-w-md" title={errorMessage}>
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">{errorMessage ? `Erro: ${errorMessage}` : 'Erro ao salvar'}</span>
             </div>
           )}
 

@@ -147,27 +147,29 @@ export async function saveDataToSheet(payload: {
   data?: any; // Opcional para UPDATE_ROW
 }): Promise<any> {
   try {
+    console.log('Enviando payload para o Apps Script:', payload);
     const response = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      // Não enviamos headers (nem Content-Type) para forçar o navegador a fazer um "Simple Request"
-      // Isso evita a requisição de preflight (OPTIONS) que o Google Apps Script bloqueia.
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+      throw new Error(`Erro na requisição HTTPS: status ${response.status}`);
     }
 
     const result = await response.json();
     
+    // O Apps script retorna { status: 'error', message: '...' } quando não encontra a linha
     if (result.status === 'error') {
-      throw new Error(result.message);
+      console.error('Payload que gerou o erro:', payload);
+      // Extrai a mensagem real do backend (result.message)
+      throw new Error(result.message || 'Erro desconhecido no WebApp do Sheets');
     }
 
     return result;
   } catch (error) {
-    console.error('Erro ao salvar no Google Sheets:', error);
-    // Lançamos o erro para que a UI (SimuladorGrid) possa capturar e mostrar o status de erro
+    console.error('Erro Fatal ao salvar no Google Sheets:', error);
+    // Relança o erro com a mensagem real preservada
     throw error;
   }
 }
