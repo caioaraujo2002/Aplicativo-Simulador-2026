@@ -29,17 +29,20 @@ export const SHEET_NAMES = [
   'Theman'
 ];
 
+export const EXPLICIT_OFICINAS = ['teman', 'theman', 'ovelu', 'modulação', 'modulacao'];
+
 /**
  * Busca os nomes das abas (oficinas) da planilha dinamicamente
  */
 export async function fetchSheetNames(): Promise<string[]> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${API_KEY}`;
+  const timestamp = new Date().getTime();
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${API_KEY}&t=${timestamp}`;
   
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) {
-      console.error('Erro ao buscar metadados da planilha:', await response.text());
-      return SHEET_NAMES; // fallback
+      const errorText = await response.text();
+      throw new Error(errorText);
     }
     
     const data = await response.json();
@@ -49,22 +52,17 @@ export async function fetchSheetNames(): Promise<string[]> {
     
     const allSheetNames = data.sheets.map((s: any) => s.properties.title);
     
-    // Filtra abas que não são de colaboradores
-    const EXCLUDED_KEYWORDS = [
-      'dashboard', 'resumo', 'listas', 'configurações', 'dados',
-      'calendario', 'calendário', 'ferias', 'férias', 'legenda', 
-      'simulador', 'backlog', 'matriculas', 'relações', 'relacoes'
-    ];
-    
+    // Filtra abas que tenham parênteses no nome ou estão na lista de exceção
     const validSheetNames = allSheetNames.filter((name: string) => {
       const lowerName = name.toLowerCase().trim();
-      return !EXCLUDED_KEYWORDS.some(keyword => lowerName.includes(keyword));
+      const hasParentheses = name.includes('(') && name.includes(')');
+      const isExplicitlyAllowed = EXPLICIT_OFICINAS.some(oficina => lowerName.includes(oficina));
+      return hasParentheses || isExplicitlyAllowed;
     });
     
     return validSheetNames.length > 0 ? validSheetNames : SHEET_NAMES;
   } catch (error) {
-    console.error('Erro de rede ao buscar nomes das abas:', error);
-    return SHEET_NAMES;
+    throw error;
   }
 }
 
@@ -91,48 +89,37 @@ interface GoogleSheetResponse {
 }
 
 /**
- * Busca os dados de uma aba específica
- */
-async function fetchSheetData(sheetName: string): Promise<string[][]> {
-  // Busca até a coluna R (índice 17) para garantir que pegamos a Semana e os dias
-  // Aumentado para 10000 linhas e até a coluna T para cobrir todos os dados
-  const range = `'${sheetName}'!A2:T10000`; 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(range)}?key=${API_KEY}&t=${new Date().getTime()}`;
-
-  try {
-    const response = await fetch(url, {
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      console.error(`Erro ao buscar aba ${sheetName}:`, error);
-      return [];
-    }
-
-    const data = (await response.json()) as GoogleSheetResponse;
-    return data.values || [];
-  } catch (error) {
-    console.error(`Erro de rede ao buscar aba ${sheetName}:`, error);
-    return [];
-  }
-}
-
-/**
- * Busca e unifica os colaboradores de todas as abas configuradas
+ * Busca e unifica os colaboradores de todas as abas configuradas usando batchGet para economizar cota
  */
 export async function getAllColaboradores(): Promise<Colaborador[]> {
   try {
     // Busca os nomes das abas dinamicamente
     const sheetNames = await fetchSheetNames();
 
-    // Busca todas as abas em paralelo
-    const promises = sheetNames.map(async (sheetName) => {
-      const rows = await fetchSheetData(sheetName);
+    if (sheetNames.length === 0) return [];
+
+    const rangesQuery = sheetNames.map(name => `ranges=${encodeURIComponent(`'${name}'!A2:T10000`)}`).join('&');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?key=${API_KEY}&t=${new Date().getTime()}&${rangesQuery}`;
+
+    const response = await fetch(url, { cache: 'no-store' });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText);
+    }
+
+    const data = await response.json();
+    const valueRanges = data.valueRanges || [];
+
+    const colabMapTotal = new Map<string, Colaborador>();
+
+    valueRanges.forEach((valueRange: any, index: number) => {
+      const rows = valueRange.values || [];
+      const sheetName = sheetNames[index];
       
       const colabMap = new Map<string, Colaborador>();
 
-      rows.forEach((row) => {
+      rows.forEach((row: any[]) => {
         try {
           // Função auxiliar para limpar e tratar erros do Excel (#VALUE!, #N/A, etc)
           const safeString = (val: any) => {
@@ -206,34 +193,22 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
         }
       });
 
-      return Array.from(colabMap.values());
-    });
-
-    const results = await Promise.all(promises);
-    
-    // Unifica todos os arrays em um único nível (flat)
-    const allColaboradores = results.flat();
-
-    // Remove duplicatas baseadas na matrícula (id) - mantém o primeiro registro válido encontrado
-    const uniqueColaboradoresMap = new Map<string, Colaborador>();
-    
-    for (const colab of allColaboradores) {
-      // Se a matrícula já existe, só substitui se o novo registro for mais "completo"
-      // (ex: tem nome e o anterior não tinha)
-      if (!uniqueColaboradoresMap.has(colab.id)) {
-        uniqueColaboradoresMap.set(colab.id, colab);
-      } else {
-        const existing = uniqueColaboradoresMap.get(colab.id)!;
-        if (!existing.nome && colab.nome) {
-          uniqueColaboradoresMap.set(colab.id, colab);
+      // Transfere pro mapa total
+      for (const colab of colabMap.values()) {
+        if (!colabMapTotal.has(colab.id)) {
+          colabMapTotal.set(colab.id, colab);
+        } else {
+          const existing = colabMapTotal.get(colab.id)!;
+          if (existing.nome === 'Sem Nome' && colab.nome !== 'Sem Nome') {
+            colabMapTotal.set(colab.id, colab);
+          }
         }
       }
-    }
-    
-    return Array.from(uniqueColaboradoresMap.values());
+    });
+
+    return Array.from(colabMapTotal.values());
 
   } catch (error) {
-    console.warn('Não foi possível buscar colaboradores do Google Sheets:', error);
-    return [];
+    throw error;
   }
 }

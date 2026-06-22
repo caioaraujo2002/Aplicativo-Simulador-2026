@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Calendar, Users, BarChart3, Settings, Menu, X, Wrench } from 'lucide-react';
+import { Calendar, Users, BarChart3, Settings, Menu, X, Wrench, AlertCircle } from 'lucide-react';
+import { useColaboradores } from '../contexts/ColaboradoresContext';
 
 export function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const location = useLocation();
+  const { error } = useColaboradores();
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: BarChart3 },
@@ -89,7 +91,16 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-6 relative">
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-red-800 font-medium font-sans">Atenção: Erro de Sincronização</h3>
+                <p className="text-sm text-red-600 mt-1 font-sans">{error}</p>
+              </div>
+            </div>
+          )}
           <div className="min-w-[1024px] mx-auto">
             <Outlet />
           </div>

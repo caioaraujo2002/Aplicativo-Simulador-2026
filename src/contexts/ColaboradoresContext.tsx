@@ -9,6 +9,7 @@ interface ColaboradoresContextData {
   colaboradores: Colaborador[];
   oficinas: string[];
   loading: boolean;
+  error: string | null;
   refreshColaboradores: () => Promise<void>;
   addColaborador: (colab: Colaborador) => Promise<void>;
   updateColaborador: (colab: Colaborador) => Promise<void>;
@@ -21,31 +22,40 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [oficinas, setOficinas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const refreshColaboradores = async () => {
     setLoading(true);
+    setError(null);
+    let colabs: Colaborador[] = [];
+    
     try {
-      // Fetch sheet names (oficinas)
+      // 1. Fetch sheet names
       const sheetNames = await fetchSheetNames();
       setOficinas(sheetNames);
 
-      // Try to fetch from Google Sheets first
-      let colabs: Colaborador[] = [];
-      try {
-        colabs = await getAllColaboradores();
-      } catch (e) {
-        console.warn('Failed to fetch from Google Sheets, falling back to mock data', e);
-      }
-
-      // If Google Sheets returns empty (e.g. no API key), fallback to mock
-      if (colabs.length === 0) {
-        colabs = await api.getColaboradores();
-      }
+      // 2. Fetch from Google Sheets
+      colabs = await getAllColaboradores();
       
-      setColaboradores(colabs);
-    } catch (error) {
-      console.error('Failed to fetch colaboradores', error);
+    } catch (e: any) {
+      console.warn('Failed to fetch from Google Sheets, falling back to mock data', e);
+      if (e.message && e.message.includes('API_KEY_SERVICE_BLOCKED')) {
+        setError('A permissão da API do Google Sheets foi bloqueada (API_KEY_SERVICE_BLOCKED). Verifique o Google Cloud Console e habilite "Google Sheets API" para sua Chave de API, ou revise as restrições.');
+      } else {
+        setError(e.message || 'Erro ao conectar com Google Sheets.');
+      }
     } finally {
+      // If Google Sheets fails or returns empty, fallback to mock so UI is not broken
+      if (colabs.length === 0) {
+        try {
+          colabs = await api.getColaboradores();
+          const mockOficinas = Array.from(new Set(colabs.map(c => c.oficina))).filter(Boolean);
+          setOficinas(mockOficinas);
+        } catch (mockErr) {
+          console.error("Mock fetch failed", mockErr);
+        }
+      }
+      setColaboradores(colabs);
       setLoading(false);
     }
   };
@@ -196,6 +206,7 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       colaboradores, 
       oficinas,
       loading, 
+      error,
       refreshColaboradores,
       addColaborador,
       updateColaborador,
