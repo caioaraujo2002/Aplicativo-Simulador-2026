@@ -35,10 +35,24 @@ export function getStartOfWeekUTC(date: Date): Date {
   return new Date(baseDate.getTime() + weeks * 7 * 86400000);
 }
 
+export function getWeekNumberUTC(date: Date): number {
+  const baseDate = new Date(Date.UTC(2025, 11, 28, 12, 0, 0)); // 28/12/2025 12:00 UTC
+  const diffTime = date.getTime() - baseDate.getTime();
+  const diffDays = Math.floor(diffTime / 86400000);
+  const weeks = Math.floor(diffDays / 7);
+  return weeks + 1;
+}
+
+export const SEMANA_VIRADA_GERENCIA = 29;
+
 export function calcularValorDia(escala: string, turno: string, turma: string, dataDoDiaUTC: Date): string | number {
   const escalaLimpa = String(escala || '').trim().toUpperCase();
   const turnoLimpo = String(turno || '').trim().toUpperCase();
   const turmaLimpa = String(turma || '').trim().toUpperCase();
+
+  const currentWeek = getWeekNumberUTC(dataDoDiaUTC);
+  const valorPadrao = currentWeek >= SEMANA_VIRADA_GERENCIA ? '8' : '6,5';
+  const valor115 = currentWeek >= SEMANA_VIRADA_GERENCIA ? '6,5' : '5';
 
   // Se for ADM
   if (escalaLimpa === 'ADM' || turnoLimpo === 'ADM') {
@@ -46,7 +60,7 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
     if (day === 0 || day === 6) {
       return 'F';
     }
-    return '6,5';
+    return valorPadrao;
   }
 
   // Dicionário de datas de início de ciclo (sempre ao meio-dia UTC)
@@ -65,7 +79,7 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
   // Se não encontrar a data de início do ciclo, retorna um valor padrão (ex: ADM)
   if (!inicioCicloTime) {
     const day = dataDoDiaUTC.getUTCDay();
-    return (day === 0 || day === 6) ? 'F' : '6,5';
+    return (day === 0 || day === 6) ? 'F' : valorPadrao;
   }
 
   const diffDays = Math.floor((dataDoDiaUTC.getTime() - inicioCicloTime) / 86400000);
@@ -74,9 +88,9 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
     const mod = ((diffDays % 9) + 9) % 9;
     if (mod < 6) {
       // Dia de trabalho
-      if (turnoLimpo.includes('115')) return '5';
-      if (turnoLimpo.includes('104')) return '6,5';
-      return '6,5'; // Padrão
+      if (turnoLimpo.includes('115')) return valor115;
+      if (turnoLimpo.includes('104')) return valorPadrao;
+      return valorPadrao; // Padrão
     } else {
       // Folga
       return 'F';
@@ -87,9 +101,9 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
     const mod = ((diffDays % 6) + 6) % 6;
     if (mod < 4) {
       // Dia de trabalho
-      if (turnoLimpo.includes('115')) return '5';
-      if (turnoLimpo.includes('104')) return '6,5';
-      return '6,5'; // Padrão
+      if (turnoLimpo.includes('115')) return valor115;
+      if (turnoLimpo.includes('104')) return valorPadrao;
+      return valorPadrao; // Padrão
     } else {
       // Folga
       return 'F';
@@ -98,5 +112,5 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
 
   // Fallback genérico
   const day = dataDoDiaUTC.getUTCDay();
-  return (day === 0 || day === 6) ? 'F' : '6,5';
+  return (day === 0 || day === 6) ? 'F' : valorPadrao;
 }

@@ -136,3 +136,57 @@ function doPost(e) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 }
+
+function MIGRAR_CARGA_HORARIA_FUTURA() {
+  var SEMANA_VIRADA_GERENCIA = 29;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheets = ss.getSheets();
+  var explicitOficinas = ['teman', 'theman', 'ovelu', 'modulação', 'modulacao'];
+
+  for (var i = 0; i < sheets.length; i++) {
+    var sheet = sheets[i];
+    var sheetName = sheet.getName();
+    var sheetNameLower = sheetName.toLowerCase().trim();
+    var hasParentheses = (sheetName.indexOf('(') !== -1 && sheetName.indexOf(')') !== -1);
+    var isExplicit = explicitOficinas.some(function(oficina) { return sheetNameLower.indexOf(oficina) !== -1; });
+
+    if (!hasParentheses && !isExplicit) {
+      continue; // Pula a aba, pois não tem parênteses e não está na Whitelist
+    }
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) continue; // Aba vazia ou só cabeçalho
+
+    var range = sheet.getRange(2, 8, lastRow - 1, 11); // Linha 2, Coluna 8 (H) até Coluna 18 (R)
+    var formulas = range.getFormulas();
+    var values = range.getValues();
+    var hasChanges = false;
+
+    for (var r = 0; r < values.length; r++) {
+      var semana = values[r][10]; // Índice 10 = Coluna R
+      
+      if (!semana || isNaN(semana) || Number(semana) < SEMANA_VIRADA_GERENCIA) {
+        continue;
+      }
+
+      for (var c = 0; c < 7; c++) { // Colunas H a N (índices 0 a 6)
+        // Ignora células com fórmula
+        if (formulas[r][c] !== "") continue;
+        
+        var valStr = String(values[r][c]).trim().replace(',', '.');
+        
+        if (valStr === '6.5') {
+          values[r][c] = 8;
+          hasChanges = true;
+        } else if (valStr === '5' || valStr === '5.0') {
+          values[r][c] = '6,5';
+          hasChanges = true;
+        }
+      }
+    }
+
+    if (hasChanges) {
+      range.setValues(values);
+    }
+  }
+}

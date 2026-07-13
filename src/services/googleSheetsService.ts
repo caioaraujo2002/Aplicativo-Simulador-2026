@@ -3,6 +3,7 @@ import { Colaborador } from '../types';
 // ============================================================================
 // CONFIGURAÇÃO DO GOOGLE SHEETS
 // ============================================================================
+
 // Substitua pelos seus dados reais
 export const SPREADSHEET_ID = '1t6mOklY72grVr_5nZb6yHNKqXyCYwXozecMypSLe7NA';
 export const API_KEY = 'AIzaSyBlyp0zVY9lRlrqYtW7OzUNee3WguBbex8';
@@ -40,11 +41,12 @@ export async function fetchSheetNames(): Promise<string[]> {
   
   try {
     const response = await fetch(url, { cache: 'no-store' });
+    
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText);
     }
-    
+
     const data = await response.json();
     if (!data.sheets || !Array.isArray(data.sheets)) {
       return SHEET_NAMES;
@@ -98,24 +100,52 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
 
     if (sheetNames.length === 0) return [];
 
-    const rangesQuery = sheetNames.map(name => `ranges=${encodeURIComponent(`'${name}'!A2:T10000`)}`).join('&');
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?key=${API_KEY}&t=${new Date().getTime()}&${rangesQuery}`;
+    const CHUNK_SIZE = 4;
+    const allValueRanges: any[] = [];
 
-    const response = await fetch(url, { cache: 'no-store' });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText);
+    // Divide as abas em blocos menores para não estourar o limite de URL no iframe
+    for (let i = 0; i < sheetNames.length; i += CHUNK_SIZE) {
+      const chunk = sheetNames.slice(i, i + CHUNK_SIZE);
+      
+      // Encodificação obrigatória para cada nome de aba no parâmetro ranges
+      const rangesQuery = chunk
+        .map(name => `ranges=${encodeURIComponent(name)}`)
+        .join('&');
+
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?key=${API_KEY}&${rangesQuery}`;
+
+      try {
+        const response = await fetch(url, { 
+          method: 'GET',
+          mode: 'cors',
+          cache: 'no-store',
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Erro no bloco ${Math.floor(i / CHUNK_SIZE) + 1}:`, errorText);
+          continue; 
+        }
+        const data = await response.json();
+        if (data.valueRanges) {
+          allValueRanges.push(...data.valueRanges);
+        }
+      } catch (error) {
+        console.error(`Falha de rede ao buscar bloco de abas:`, error);
+      }
     }
-
-    const data = await response.json();
-    const valueRanges = data.valueRanges || [];
 
     const colabMapTotal = new Map<string, Colaborador>();
 
-    valueRanges.forEach((valueRange: any, index: number) => {
+    allValueRanges.forEach((valueRange: any) => {
       const rows = valueRange.values || [];
-      const sheetName = sheetNames[index];
+      const rangeName = valueRange.range || '';
+      let sheetName = rangeName.split('!')[0] || '';
+      if (sheetName.startsWith("'") && sheetName.endsWith("'")) {
+        sheetName = sheetName.substring(1, sheetName.length - 1);
+      }
       
       const colabMap = new Map<string, Colaborador>();
 
@@ -137,13 +167,14 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
             return;
           }
 
-          const nome = safeString(row[1]) || 'Sem Nome'; // Garante que o colaborador vai existir mesmo sem nome
+          const nome = safeString(row[1]) || 'Sem Nome';
           const funcao = safeString(row[2]) || 'Não informada';
           const escala = safeString(row[3]) || 'ADM';
           const turnoLimpo = safeString(row[5]) || 'ADM';
           const turmaLimpa = safeString(row[6]);
           
           const semana = safeString(row[17]); // Coluna R
+
           const dias = [
             safeString(row[7]), // dom (H)
             safeString(row[8]), // seg (I)
@@ -179,12 +210,10 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
 
           const colab = colabMap.get(matricula)!;
           
-          // Se o nome atual do mapa for 'Sem Nome' e essa nova linha tiver o nome verdadeiro, atualiza
           if (colab.nome === 'Sem Nome' && nome !== 'Sem Nome') {
             colab.nome = nome;
           }
 
-          // Atribui os dias à semana, apenas se a semana for um valor válido (não vazio)
           if (semana && colab.escalasAnuais) {
             colab.escalasAnuais[semana] = dias;
           }

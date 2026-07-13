@@ -10,8 +10,9 @@ import { getStartOfWeekUTC, calcularValorDia, formatDateUTC, formatDisplayDayOfW
 import { WeekSelector } from './WeekSelector';
 
 const OPCOES_LEGENDA = [
-  { label: '6,5', value: '6,5' },
+  { label: '8', value: '8' },
   { label: '8,5', value: '8,5' },
+  { label: '6,5', value: '6,5' },
   { label: '5', value: '5' },
   { label: '4', value: '4' },
   { label: '0', value: '0' },
@@ -211,7 +212,7 @@ export function SimuladorGrid() {
     if (strVal === 'L') return { className: 'font-bold', style: { backgroundColor: '#facc15', color: '#713f12' } };
     
     // Check for hours
-    if (['6,5', '8,5', '5', '4'].includes(strVal)) return { className: 'font-bold', style: { backgroundColor: '#22c55e', color: '#ffffff' } };
+    if (['8', '8,5', '6,5', '5', '4'].includes(strVal)) return { className: 'font-bold', style: { backgroundColor: '#22c55e', color: '#ffffff' } };
     
     // Default/Zero
     return { className: '', style: { backgroundColor: '#f3f4f6', color: '#1f2937' } };
