@@ -48,6 +48,23 @@ export function ColaboradorFormModal({ isOpen, onClose, onSave, initialData, ofi
 
   if (!isOpen) return null;
 
+  const getEscalaByTurno = (turno: string): Escala => {
+    const t = turno.trim().toUpperCase();
+    if (t.includes('104')) return '6x3';
+    if (t.includes('115')) return '4x2';
+    if (t.includes('21') || t === 'ADM') return 'ADM';
+    return 'ADM';
+  };
+
+  const handleTurnoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const novoTurno = e.target.value as Turno;
+    setFormData(prev => ({
+      ...prev,
+      turno: novoTurno,
+      escala: getEscalaByTurno(novoTurno)
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -127,7 +144,7 @@ export function ColaboradorFormModal({ isOpen, onClose, onSave, initialData, ofi
               <label className="block text-sm font-medium text-slate-700 mb-1">Turno</label>
               <select
                 value={formData.turno}
-                onChange={e => setFormData({...formData, turno: e.target.value as Turno})}
+                onChange={handleTurnoChange}
                 className="w-full rounded-lg border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500"
               >
                 <option value="104">104</option>

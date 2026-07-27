@@ -125,6 +125,32 @@ function doPost(e) {
         message: "Colaborador transferido com sucesso de " + oficinaOriginal + " para " + oficinaNova 
       })).setMimeType(ContentService.MimeType.JSON);
 
+    } else if (action === "UPDATE_COLABORADOR") {
+      var escala = payload.escala;
+      var turno = payload.turno;
+      var turma = payload.turma;
+      
+      var data = sheet.getDataRange().getValues();
+      var rowsUpdated = 0;
+      
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][0]) === String(matricula)) {
+          sheet.getRange(i + 1, 4).setValue(escala);
+          sheet.getRange(i + 1, 6).setValue(turno);
+          sheet.getRange(i + 1, 7).setValue(turma);
+          rowsUpdated++;
+        }
+      }
+      
+      if (rowsUpdated === 0) {
+        throw new Error("Colaborador não encontrado na aba: " + sheetName);
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({ 
+        status: "success", 
+        message: "Colaborador atualizado com sucesso" 
+      })).setMimeType(ContentService.MimeType.JSON);
+
     } else {
       throw new Error("Ação desconhecida: " + action);
     }

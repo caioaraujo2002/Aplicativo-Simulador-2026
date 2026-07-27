@@ -157,6 +157,7 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
           action: 'UPDATE_COLABORADOR',
           oficina: data.oficina,
           matricula: data.id,
+          escala: data.escala,
           turno: data.turno,
           turma: data.turma,
           escalasAnuais

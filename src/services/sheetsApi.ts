@@ -75,6 +75,7 @@ export async function updateColaboradorMasterData(payload: {
   action: 'UPDATE_COLABORADOR';
   oficina: string;
   matricula: string;
+  escala: string;
   turno: string;
   turma: string;
   escalasAnuais: Record<string, string[]>;
