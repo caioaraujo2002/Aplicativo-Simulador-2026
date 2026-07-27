@@ -71,8 +71,9 @@ export function ColaboradorFormModal({ isOpen, onClose, onSave, initialData, ofi
     try {
       await onSave(formData);
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar:', error);
+      alert(`Erro ao salvar: ${error.message || error}`);
     } finally {
       setIsSubmitting(false);
     }

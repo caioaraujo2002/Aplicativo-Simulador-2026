@@ -67,9 +67,6 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
   const addColaborador = async (data: Colaborador) => {
     const previousState = [...colaboradores];
     try {
-      // Optimistic UI update
-      setColaboradores(prev => [...prev, data]);
-
       // Calcular as 52 semanas do ano para o novo turno/turma
       const escalasAnuais: Record<string, string[]> = {};
       const baseDate = new Date(Date.UTC(2025, 11, 28, 12, 0, 0)); // 28/12/2025 12:00 UTC
@@ -102,8 +99,9 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
 
       await api.addColaborador(data);
       
-      // Force re-sync with Google Sheets to ensure data consistency
-      await refreshColaboradores();
+      // Optimistic UI update AFTER successful API call
+      setColaboradores(prev => [...prev, { ...data, escalasAnuais }]);
+      
     } catch (error) {
       console.error('Erro ao adicionar colaborador:', error);
       setColaboradores(previousState); // Revert on error
@@ -117,11 +115,8 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       const originalColab = colaboradores.find(c => c.id === data.id);
       const oficinaOriginal = originalColab?.oficina;
 
-      // Optimistic UI update
-      setColaboradores(prev => prev.map(c => c.id === data.id ? data : c));
-
       // Calcular as 52 semanas do ano para o novo turno/turma
-      const escalasAnuais: Record<string, string[]> = {};
+      const novasEscalasAnuais: Record<string, string[]> = {};
       const baseDate = new Date(Date.UTC(2025, 11, 28, 12, 0, 0)); // 28/12/2025 12:00 UTC
       
       for (let semana = 1; semana <= 52; semana++) {
@@ -134,7 +129,7 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
           semanaArr.push(String(valor));
         }
         
-        escalasAnuais[String(semana)] = semanaArr;
+        novasEscalasAnuais[String(semana)] = semanaArr;
       }
 
       if (oficinaOriginal && oficinaOriginal !== data.oficina) {
@@ -149,7 +144,7 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
           escala: data.escala,
           turno: data.turno,
           turma: data.turma,
-          escalasAnuais
+          escalasAnuais: novasEscalasAnuais
         });
       } else {
         // Atualiza no Google Sheets via Web App (mesma oficina)
@@ -160,14 +155,15 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
           escala: data.escala,
           turno: data.turno,
           turma: data.turma,
-          escalasAnuais
+          escalasAnuais: novasEscalasAnuais
         });
       }
 
       await api.updateColaborador(data);
       
-      // Force re-sync with Google Sheets to ensure data consistency
-      await refreshColaboradores();
+      // Optimistic UI update AFTER successful API call
+      setColaboradores(prev => prev.map(c => c.id === data.id ? { ...data, escalasAnuais: novasEscalasAnuais } : c));
+      
     } catch (error) {
       console.error('Erro ao atualizar colaborador:', error);
       setColaboradores(previousState); // Revert on error

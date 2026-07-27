@@ -100,7 +100,7 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
 
     if (sheetNames.length === 0) return [];
 
-    const CHUNK_SIZE = 4;
+    const CHUNK_SIZE = 2;
     const allValueRanges: any[] = [];
 
     // Divide as abas em blocos menores para não estourar o limite de URL no iframe
@@ -109,19 +109,14 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
       
       // Encodificação obrigatória para cada nome de aba no parâmetro ranges
       const rangesQuery = chunk
-        .map(name => `ranges=${encodeURIComponent(name)}`)
+        .map(name => `ranges=${encodeURIComponent(`'${name}'!A2:T10000`)}`)
         .join('&');
 
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?key=${API_KEY}&${rangesQuery}`;
 
       try {
         const response = await fetch(url, { 
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-store',
-          headers: {
-            'Accept': 'application/json'
-          }
+          cache: 'no-store'
         });
         if (!response.ok) {
           const errorText = await response.text();
