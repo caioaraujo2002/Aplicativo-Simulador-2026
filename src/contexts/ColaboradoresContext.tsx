@@ -68,7 +68,7 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
     const previousState = [...colaboradores];
     try {
       // Calcular as 52 semanas do ano para o novo turno/turma
-      const escalasAnuais: Record<string, string[]> = {};
+      const novasEscalasAnuais: Record<string, string[]> = {};
       const baseDate = new Date(Date.UTC(2025, 11, 28, 12, 0, 0)); // 28/12/2025 12:00 UTC
       
       for (let semana = 1; semana <= 52; semana++) {
@@ -81,7 +81,7 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
           semanaArr.push(String(valor));
         }
         
-        escalasAnuais[String(semana)] = semanaArr;
+        novasEscalasAnuais[String(semana)] = semanaArr;
       }
 
       // Adiciona no Google Sheets via Web App
@@ -94,13 +94,13 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
         escala: data.escala,
         turno: data.turno,
         turma: data.turma,
-        escalasAnuais
+        escalasAnuais: novasEscalasAnuais
       });
 
       await api.addColaborador(data);
       
       // Optimistic UI update AFTER successful API call
-      setColaboradores(prev => [...prev, { ...data, escalasAnuais }]);
+      setColaboradores(prev => [...prev, { ...data, escalasAnuais: novasEscalasAnuais }]);
       
     } catch (error) {
       console.error('Erro ao adicionar colaborador:', error);
@@ -189,8 +189,6 @@ export function ColaboradoresProvider({ children }: { children: ReactNode }) {
       // Update local state IMMEDIATELY after successful API call
       setColaboradores(prev => prev.filter(c => c.id !== id));
       
-      // Force re-sync with Google Sheets to ensure data consistency
-      await refreshColaboradores();
     } catch (error) {
       console.error('Erro ao excluir colaborador:', error);
       setColaboradores(previousState); // Revert on error

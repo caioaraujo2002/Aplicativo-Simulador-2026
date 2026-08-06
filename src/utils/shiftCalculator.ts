@@ -51,8 +51,11 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
   const turmaLimpa = String(turma || '').trim().toUpperCase();
 
   const currentWeek = getWeekNumberUTC(dataDoDiaUTC);
-  const valorPadrao = currentWeek >= SEMANA_VIRADA_GERENCIA ? '8' : '6,5';
-  const valor115 = currentWeek >= SEMANA_VIRADA_GERENCIA ? '6,5' : '5';
+  const isFuturo = currentWeek >= SEMANA_VIRADA_GERENCIA;
+  
+  const pesoDia = turnoLimpo.includes('115') 
+    ? (isFuturo ? '6,5' : '5') 
+    : (isFuturo ? '8' : '6,5');
 
   // Se for ADM
   if (escalaLimpa === 'ADM' || turnoLimpo === 'ADM') {
@@ -60,7 +63,7 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
     if (day === 0 || day === 6) {
       return 'F';
     }
-    return valorPadrao;
+    return pesoDia;
   }
 
   // Dicionário de datas de início de ciclo (sempre ao meio-dia UTC)
@@ -79,7 +82,7 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
   // Se não encontrar a data de início do ciclo, retorna um valor padrão (ex: ADM)
   if (!inicioCicloTime) {
     const day = dataDoDiaUTC.getUTCDay();
-    return (day === 0 || day === 6) ? 'F' : valorPadrao;
+    return (day === 0 || day === 6) ? 'F' : pesoDia;
   }
 
   const diffDays = Math.floor((dataDoDiaUTC.getTime() - inicioCicloTime) / 86400000);
@@ -88,9 +91,7 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
     const mod = ((diffDays % 9) + 9) % 9;
     if (mod < 6) {
       // Dia de trabalho
-      if (turnoLimpo.includes('115')) return valor115;
-      if (turnoLimpo.includes('104')) return valorPadrao;
-      return valorPadrao; // Padrão
+      return pesoDia;
     } else {
       // Folga
       return 'F';
@@ -101,9 +102,7 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
     const mod = ((diffDays % 6) + 6) % 6;
     if (mod < 4) {
       // Dia de trabalho
-      if (turnoLimpo.includes('115')) return valor115;
-      if (turnoLimpo.includes('104')) return valorPadrao;
-      return valorPadrao; // Padrão
+      return pesoDia;
     } else {
       // Folga
       return 'F';
@@ -112,5 +111,5 @@ export function calcularValorDia(escala: string, turno: string, turma: string, d
 
   // Fallback genérico
   const day = dataDoDiaUTC.getUTCDay();
-  return (day === 0 || day === 6) ? 'F' : valorPadrao;
+  return (day === 0 || day === 6) ? 'F' : pesoDia;
 }
