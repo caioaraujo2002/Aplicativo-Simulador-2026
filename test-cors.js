@@ -1,0 +1,1 @@
+fetch("https://sheets.googleapis.com/v4/spreadsheets/1t6mOklY72grVr_5nZb6yHNKqXyCYwXozecMypSLe7NA?key=AIzaSyBlyp0zVY9lRlrqYtW7OzUNee3WguBbex8", { cache: 'no-store' }).then(res => console.log(res.status)).catch(err => console.error(err));

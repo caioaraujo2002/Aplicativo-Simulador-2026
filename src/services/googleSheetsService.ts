@@ -40,7 +40,10 @@ export async function fetchSheetNames(): Promise<string[]> {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${API_KEY}&t=${timestamp}`;
   
   try {
-    const response = await fetch(url, { cache: 'no-store' });
+    const response = await fetch(url, { 
+      method: 'GET',
+      cache: 'no-store'
+    });
     
     if (!response.ok) {
       const errorText = await response.text();
@@ -112,10 +115,11 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
         .map(name => `ranges=${encodeURIComponent(`'${name}'!A2:T10000`)}`)
         .join('&');
 
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?key=${API_KEY}&${rangesQuery}`;
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values:batchGet?key=${API_KEY}&${rangesQuery}&t=${new Date().getTime()}`;
 
       try {
         const response = await fetch(url, { 
+          method: 'GET',
           cache: 'no-store'
         });
         if (!response.ok) {
