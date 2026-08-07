@@ -227,9 +227,22 @@ export async function getAllColaboradores(): Promise<Colaborador[]> {
           colabMapTotal.set(colab.id, colab);
         } else {
           const existing = colabMapTotal.get(colab.id)!;
+          
+          // 1. Atualiza o nome se o anterior for genérico
           if (existing.nome === 'Sem Nome' && colab.nome !== 'Sem Nome') {
-            colabMapTotal.set(colab.id, colab);
+            existing.nome = colab.nome;
           }
+          
+          // 2. MESCLA as escalas anuais. Se a aba atual tiver semanas novas, elas preenchem o calendário
+          existing.escalasAnuais = { ...existing.escalasAnuais, ...colab.escalasAnuais };
+          
+          // 3. Prioriza sempre a oficina e o turno do registro que possui dados válidos na leitura atual
+          existing.oficina = colab.oficina;
+          existing.escala = colab.escala;
+          existing.turno = colab.turno;
+          existing.turma = colab.turma;
+          
+          colabMapTotal.set(colab.id, existing);
         }
       }
     });
